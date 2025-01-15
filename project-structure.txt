@@ -1,0 +1,15 @@
+ai-interview-assistant/
+├── src/
+│   ├── main/
+│   │   └── main.js
+│   ├── renderer/
+│   │   ├── components/
+│   │   │   └── InterviewAssistant.jsx
+│   │   ├── App.jsx
+│   │   └── index.html
+│   └── server/
+│       └── server.js
+├── package.json
+├── .env
+└── forge.config.js
+
