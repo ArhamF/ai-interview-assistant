@@ -16,14 +16,14 @@
 
 ## Introduction
 
-_**AI Interview Assistant**_ is an innovative application designed to help users practice and improve their interviewing skills. By leveraging the power of AI, this tool provides real-time transcription of user speech and generates intelligent responses, simulating a realistic interview experience.
+_**AI Interview Assistant**_ is an innovative application designed to help users practice and improve their _interviewing_ skills. By _leveraging_ the power of AI, this **tool** provides real-time transcription of user speech and generates _intelligent_ responses, simulating a _realistic_ interview experience.
 
 ## Features
 
 - Real-time audio recording and transcription
 - AI-powered responses to interview questions
 - User-friendly interface with start/stop recording functionality
-- Cross-platform desktop application (Windows, macOS, Linux)
+- Cross-platform desktop application (```Windows```, ```macOS```, ```Linux```)
 
 ## Technology Stack
 
@@ -33,10 +33,10 @@ _**AI Interview Assistant**_ is an innovative application designed to help users
 - **Backend:**
   - ```Node.js```
   - ```Express.js```
-  - WebSocket for real-time communication
+  - ```WebSocket``` for real-time communication
 - **AI and Speech Recognition:**
   - ```OpenAI GPT-3.5``` for generating responses
-  - Whisper for speech-to-text transcription
+  - ```Whisper``` for speech-to-text transcription
 - **Desktop Application:**
   - ```Electron.js```
 
@@ -61,7 +61,7 @@ ai-interview-assistant/
 
 ## Detailed File Descriptions
 
-### ``` src/main/main.js```
+### ```src/main/main.js```
 This is the entry point for the Electron application. It's responsible for:
 - Creating the main application window
 - Loading the React application into the window
