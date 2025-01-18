@@ -37,4 +37,3 @@ app.on('activate', () => {
 
 // Start the server
 require('../server/server');
-
