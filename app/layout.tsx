@@ -1,12 +1,11 @@
 import '@/styles/globals.css'
 import { Inter } from 'next/font/google'
-import { Navbar } from '@/components/navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'AI Interview Assistant',
-  description: 'Practice interviews with AI-powered feedback and guidance.',
+  description: 'An AI-powered interview assistant to help with your interview preparation.',
 }
 
 export default function RootLayout({
@@ -15,11 +14,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-[#0a0b14] min-h-screen`}>
-        <Navbar />
-        {children}
-      </body>
+    <html lang="en">
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
