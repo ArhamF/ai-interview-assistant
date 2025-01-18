@@ -136,7 +136,7 @@ Note: This file should never be committed to version control. It's listed in .gi
 1. Clone the repository:
    
    ```
-   git clone https://github.com/yourusername/ai-interview-assistant.git
+   git clone https://github.com/arhamf/ai-interview-assistant.git
    cd ai-interview-assistant
    ```
 
