@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react"
 import { Mic, Code, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react"
 import { TextOverlay } from "@/components/TextOverlay"
 
-// Add TypeScript declarations for Web Speech API
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
@@ -20,10 +19,12 @@ export default function InterviewAssistant() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(false)
   const codeEditorRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const finalTranscriptRef = useRef("")
 
+  // Initialize speech recognition
   useEffect(() => {
-    if ((typeof window !== "undefined" && "SpeechRecognition" in window) || "webkitSpeechRecognition" in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition()
       recognitionRef.current.continuous = true
       recognitionRef.current.interimResults = true
@@ -34,7 +35,6 @@ export default function InterviewAssistant() {
         let interimTranscript = ''
 
         results.forEach(result => {
-          // Add to final transcript if result is final
           if (result.isFinal) {
             finalTranscript += result[0].transcript
           } else {
@@ -42,57 +42,99 @@ export default function InterviewAssistant() {
           }
         })
 
-        // Update with final + interim results
+        finalTranscriptRef.current = finalTranscript
         setCurrentQuestion(finalTranscript + interimTranscript)
       }
 
       recognitionRef.current.onend = () => {
-        // Only restart if we're still supposed to be listening
-        if (isListening) {
-          recognitionRef.current?.start()
+        if (isListening && recognitionRef.current) {
+          recognitionRef.current.start()
+        } else if (!isListening && finalTranscriptRef.current) {
+          handleFinalTranscript(finalTranscriptRef.current)
         }
       }
 
       recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error", event.error)
-        if (event.error === 'no-speech') {
-          // Restart on no-speech error if we're still supposed to be listening
-          if (isListening && recognitionRef.current) {
-            recognitionRef.current.start()
-          }
+        if (event.error === 'no-speech' && isListening && recognitionRef.current) {
+          recognitionRef.current.start()
         } else {
           setIsListening(false)
         }
       }
     }
-  }, [isListening]) // Add isListening to dependency array
 
-  const startListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start()
-        setIsListening(true)
-      } catch (error) {
-        console.error("Error starting recognition:", error)
-        // If already started, stop and restart
-        if (error instanceof Error && error.message.includes('already started')) {
-          recognitionRef.current.stop()
-          setTimeout(() => {
-            recognitionRef.current?.start()
-            setIsListening(true)
-          }, 100)
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
+
+  // Handle speech recognition state changes
+  useEffect(() => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start()
+        } catch (error) {
+          console.error("Error starting recognition:", error)
+          if (error instanceof Error && error.message.includes('already started')) {
+            recognitionRef.current.stop()
+            setTimeout(() => {
+              if (recognitionRef.current && isListening) {
+                recognitionRef.current.start()
+              }
+            }, 100)
+          }
         }
       }
     } else {
-      console.error("Speech recognition is not supported in this browser.")
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [isListening])
+
+  const handleFinalTranscript = async (finalTranscript: string) => {
+    if (!finalTranscript.trim()) return
+
+    try {
+      setIsTyping(true)
+
+      // Make API call to your backend
+      const response = await fetch('/api/interview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: finalTranscript }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from server')
+      }
+
+      const data = await response.json()
+      setResponse(data.response)
+
+    } catch (error) {
+      console.error('Error getting response:', error)
+      setResponse('Sorry, there was an error processing your question.')
+    } finally {
+      setIsTyping(false)
+      // Clear the final transcript after processing
+      finalTranscriptRef.current = ""
+      setCurrentQuestion("")
     }
   }
 
+  const startListening = () => {
+    setIsListening(true)
+  }
+
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    }
+    setIsListening(false)
   }
 
   const toggleOverlay = () => {
@@ -183,4 +225,3 @@ export default function InterviewAssistant() {
       </div>
   )
 }
-
