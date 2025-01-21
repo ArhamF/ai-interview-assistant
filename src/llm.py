@@ -1,45 +1,41 @@
-import openai
-from loguru import logger
+from openai import OpenAI
+import os
 
-from src.constants import INTERVIEW_POSTION, OPENAI_API_KEY, OUTPUT_FILE_NAME
+# Initialize the OpenAI client with the API key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-openai.api_key = OPENAI_API_KEY
+def process_audio_transcription(transcription):
+    """
+    Takes a transcription from audio input, formats it as a question,
+    and sends it to GPT to generate an answer.
 
-SYSTEM_PROMPT = f"""You are interviewing for a {INTERVIEW_POSTION} position.
-You will receive an audio transcription of the question. It may not be complete. You need to understand the question and write an answer to it.\n
-"""
-SHORTER_INSTRACT = "Concisely respond, limiting your answer to 50 words."
-LONGER_INSTRACT = (
-    "Before answering, take a deep breath and think one step at a time. Believe the answer in no more than 150 words."
-)
+    Args:
+        transcription (str): The transcribed audio text.
 
-
-def transcribe_audio(path_to_file: str = OUTPUT_FILE_NAME) -> str:
-    with open(path_to_file, "rb") as audio_file:
-        try:
-            transcript = openai.Audio.translate("whisper-1", audio_file)
-        except Exception as error:
-            logger.error(f"Can't transcribe audio: {error}")
-            raise error
-    return transcript["text"]
-
-
-def generate_answer(transcript: str, short_answer: bool = True, temperature: float = 0.7) -> str:
-    if short_answer:
-        system_prompt = SYSTEM_PROMPT + SHORTER_INSTRACT
-    else:
-        system_prompt = SYSTEM_PROMPT + LONGER_INSTRACT
+    Returns:
+        str: The AI-generated response.
+    """
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            temperature=temperature,
+        # Ensure the transcription is valid
+        if not transcription.strip():
+            return "Error: The transcription is empty or invalid."
+
+        # Format the transcription into a question
+        question_prompt = f"Based on the following transcription, generate an appropriate answer: \"{transcription}\""
+
+        # Make a request to the OpenAI API
+        completion = client.chat.completions.create(
+            model="gpt-4",
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": transcript},
+                {"role": "developer", "content": "You are a helpful assistant answering questions based on transcribed audio."},
+                {"role": "user", "content": question_prompt},
             ],
         )
-    except Exception as error:
-        logger.error(f"Can't generate answer: {error}")
-        raise error
-    return response["choices"][0]["message"]["content"]
 
+        # Return the AI's response
+        return completion.choices[0].message.content.strip()
+
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error: An unexpected error occurred ({str(e)})."
