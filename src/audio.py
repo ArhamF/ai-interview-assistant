@@ -1,25 +1,28 @@
-"""Audio utilities."""
-import numpy as np
-import soundcard as sc
-import soundfile as sf
-from loguru import logger
+from flask import Flask, request, jsonify
+from llm import process_audio_transcription
+from constants import MAX_INPUT_LENGTH
 
-from src.constants import OUTPUT_FILE_NAME, RECORD_SEC, SAMPLE_RATE
+app = Flask(__name__)
 
-SPEAKER_ID = str(sc.default_speaker().name)
+@app.route('/api/interview', methods=['POST'])
+def interview():
+    try:
+        data = request.get_json()
+        transcription = data.get('question', '')
 
+        if not transcription:
+            return jsonify({"error": "No transcription provided."}), 400
 
-def record_batch(record_sec: int = RECORD_SEC) -> np.ndarray:
-    logger.debug("Recording for {record_sec} second(s)...")
-    with sc.get_microphone(
-        id=SPEAKER_ID,
-        include_loopback=True,
-    ).recorder(samplerate=SAMPLE_RATE) as mic:
-        audio_sample = mic.record(numframes=SAMPLE_RATE * record_sec)
-    return audio_sample
+        if len(transcription) > MAX_INPUT_LENGTH:
+            return jsonify({"error": f"Input exceeds maximum length of {MAX_INPUT_LENGTH} characters."}), 400
 
+        # Process transcription and get GPT response
+        response = process_audio_transcription(transcription)
+        return jsonify({"response": response})
 
-def save_audio_file(audio_data: np.ndarray, output_file_name: str = OUTPUT_FILE_NAME) -> None:
-    logger.debug(f"Saving audio file to {output_file_name}...")
-    sf.write(file=output_file_name, data=audio_data, samplerate=SAMPLE_RATE)
+    except Exception as e:
+        app.logger.error(f"An error occurred: {str(e)}")
+        return jsonify({"error": "Internal server error."}), 500
 
+if __name__ == '__main__':
+    app.run(debug=True)
