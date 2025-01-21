@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Mic, Code, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react"
-import { TextOverlay } from "@/components/TextOverlay"
+import { useState, useRef, useEffect } from "react";
+import { Mic, Code, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react";
+import { TextOverlay } from "@/components/TextOverlay";
 
 declare global {
   interface Window {
@@ -12,134 +12,133 @@ declare global {
 }
 
 export default function InterviewAssistant() {
-  const [isListening, setIsListening] = useState(false)
-  const [currentQuestion, setCurrentQuestion] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
-  const [response, setResponse] = useState("")
-  const [isOverlayVisible, setIsOverlayVisible] = useState(false)
-  const codeEditorRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const finalTranscriptRef = useRef("")
+  const [isListening, setIsListening] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [response, setResponse] = useState("");
+  const [isOverlayVisible, setIsOverlayVisible] = useState(false);
+  const codeEditorRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const finalTranscriptRef = useRef("");
 
   // Initialize speech recognition
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = true
-      recognitionRef.current.interimResults = true
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
 
       recognitionRef.current.onresult = (event) => {
-        const results = Array.from(event.results)
-        let finalTranscript = ''
-        let interimTranscript = ''
+        const results = Array.from(event.results);
+        let finalTranscript = "";
+        let interimTranscript = "";
 
-        results.forEach(result => {
+        results.forEach((result) => {
           if (result.isFinal) {
-            finalTranscript += result[0].transcript
+            finalTranscript += result[0].transcript;
           } else {
-            interimTranscript += result[0].transcript
+            interimTranscript += result[0].transcript;
           }
-        })
+        });
 
-        finalTranscriptRef.current = finalTranscript
-        setCurrentQuestion(finalTranscript + interimTranscript)
-      }
+        finalTranscriptRef.current = finalTranscript;
+        setCurrentQuestion(finalTranscript + interimTranscript);
+      };
 
       recognitionRef.current.onend = () => {
         if (isListening && recognitionRef.current) {
-          recognitionRef.current.start()
+          recognitionRef.current.start();
         } else if (!isListening && finalTranscriptRef.current) {
-          handleFinalTranscript(finalTranscriptRef.current)
+          handleFinalTranscript(finalTranscriptRef.current);
         }
-      }
+      };
 
       recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error)
-        if (event.error === 'no-speech' && isListening && recognitionRef.current) {
-          recognitionRef.current.start()
+        console.error("Speech recognition error", event.error);
+        if (event.error === "no-speech" && isListening && recognitionRef.current) {
+          recognitionRef.current.start();
         } else {
-          setIsListening(false)
+          setIsListening(false);
         }
-      }
+      };
     }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop()
+        recognitionRef.current.stop();
       }
-    }
-  }, [])
+    };
+  }, []);
 
   // Handle speech recognition state changes
   useEffect(() => {
     if (isListening) {
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.start()
+          recognitionRef.current.start();
         } catch (error) {
-          console.error("Error starting recognition:", error)
-          if (error instanceof Error && error.message.includes('already started')) {
-            recognitionRef.current.stop()
+          console.error("Error starting recognition:", error);
+          if (error instanceof Error && error.message.includes("already started")) {
+            recognitionRef.current.stop();
             setTimeout(() => {
               if (recognitionRef.current && isListening) {
-                recognitionRef.current.start()
+                recognitionRef.current.start();
               }
-            }, 100)
+            }, 100);
           }
         }
       }
     } else {
       if (recognitionRef.current) {
-        recognitionRef.current.stop()
+        recognitionRef.current.stop();
       }
     }
-  }, [isListening])
+  }, [isListening]);
 
   const handleFinalTranscript = async (finalTranscript: string) => {
-    if (!finalTranscript.trim()) return
+    if (!finalTranscript.trim()) return;
 
     try {
-      setIsTyping(true)
+      setIsTyping(true);
 
       // Make API call to your backend
-      const response = await fetch('/api/interview', {
+      const response = await fetch('http://localhost:3000/api/interview', { // Replace with the correct backend URL
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ question: finalTranscript }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from server')
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get a valid response');
       }
 
-      const data = await response.json()
-      setResponse(data.response)
-
-    } catch (error) {
-      console.error('Error getting response:', error)
-      setResponse('Sorry, there was an error processing your question.')
+      const data = await response.json();
+      setResponse(data.response || 'No response received.');
+    } catch (error: any) {
+      console.error('Error getting response:', error.message);
+      setResponse(error.message || 'Sorry, there was an error processing your question.');
     } finally {
-      setIsTyping(false)
-      // Clear the final transcript after processing
-      finalTranscriptRef.current = ""
-      setCurrentQuestion("")
+      setIsTyping(false);
+      finalTranscriptRef.current = '';
+      setCurrentQuestion('');
     }
-  }
+  };
 
   const startListening = () => {
-    setIsListening(true)
-  }
+    setIsListening(true);
+  };
 
   const stopListening = () => {
-    setIsListening(false)
-  }
+    setIsListening(false);
+  };
 
   const toggleOverlay = () => {
-    setIsOverlayVisible(!isOverlayVisible)
-  }
+    setIsOverlayVisible(!isOverlayVisible);
+  };
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-purple-950 via-gray-900 to-blue-950 text-gray-100 p-6">
@@ -223,5 +222,5 @@ export default function InterviewAssistant() {
           <TextOverlay text={response} isVisible={isOverlayVisible} />
         </div>
       </div>
-  )
+  );
 }
