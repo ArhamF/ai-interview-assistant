@@ -1,4 +1,4 @@
-# AI Interview Assistant
+# Ai Interview Assistant
 
 ## Table of Contents
 1. [Introduction](#introduction)
