@@ -23,9 +23,9 @@ export const TextOverlay: React.FC<TextOverlayProps> = ({ text, isVisible }) => 
   if (!isVisible) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <p className="text-white text-4xl font-bold text-center px-4">{lines[currentLineIndex]}</p>
-    </div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <p className="text-white text-4xl font-bold text-center px-4">{lines[currentLineIndex]}</p>
+      </div>
   )
 }
 
