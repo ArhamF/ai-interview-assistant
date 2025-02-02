@@ -1,15 +1,10 @@
-"use client";
+"use client"
 
+import "regenerator-runtime/runtime"; // Required for async/await support
 import { useState, useRef, useEffect } from "react";
 import { Mic, Code, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react";
-import { TextOverlay } from "@/components/TextOverlay";
-
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+import { TextOverlay } from "../components/TextOverlay";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 
 export default function InterviewAssistant() {
   const [isListening, setIsListening] = useState(false);
@@ -17,128 +12,88 @@ export default function InterviewAssistant() {
   const [isTyping, setIsTyping] = useState(false);
   const [response, setResponse] = useState("");
   const [isOverlayVisible, setIsOverlayVisible] = useState(false);
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const codeEditorRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const finalTranscriptRef = useRef("");
 
-  // Initialize speech recognition
+  // Destructure methods from useSpeechRecognition
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+  } = useSpeechRecognition();
+
+  // Update currentQuestion when transcript changes
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-
-      recognitionRef.current.onresult = (event) => {
-        const results = Array.from(event.results);
-        let finalTranscript = "";
-        let interimTranscript = "";
-
-        results.forEach((result) => {
-          if (result.isFinal) {
-            finalTranscript += result[0].transcript;
-          } else {
-            interimTranscript += result[0].transcript;
-          }
-        });
-
-        finalTranscriptRef.current = finalTranscript;
-        setCurrentQuestion(finalTranscript + interimTranscript);
-      };
-
-      recognitionRef.current.onend = () => {
-        if (isListening && recognitionRef.current) {
-          recognitionRef.current.start();
-        } else if (!isListening && finalTranscriptRef.current) {
-          handleFinalTranscript(finalTranscriptRef.current);
-        }
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        if (event.error === "no-speech" && isListening && recognitionRef.current) {
-          recognitionRef.current.start();
-        } else {
-          setIsListening(false);
-        }
-      };
+    if (browserSupportsSpeechRecognition) {
+      setCurrentQuestion(transcript);
     }
+  }, [transcript, browserSupportsSpeechRecognition]);
 
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, []);
-
-  // Handle speech recognition state changes
+  // Sync listening state with the component's isListening state
   useEffect(() => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (error) {
-          console.error("Error starting recognition:", error);
-          if (error instanceof Error && error.message.includes("already started")) {
-            recognitionRef.current.stop();
-            setTimeout(() => {
-              if (recognitionRef.current && isListening) {
-                recognitionRef.current.start();
-              }
-            }, 100);
-          }
-        }
-      }
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    }
-  }, [isListening]);
+    setIsListening(listening);
+  }, [listening]);
 
-  const handleFinalTranscript = async (finalTranscript: string) => {
-    if (!finalTranscript.trim()) return;
+  // Debug log for currentQuestion
+  useEffect(() => {
+    console.log("Current question updated:", currentQuestion);
+  }, [currentQuestion]);
+
+  // Start listening handler
+  const startListening = () => {
+    resetTranscript();
+    SpeechRecognition.startListening({ continuous: true, language: "en-US" });
+  };
+
+  // Stop listening handler
+  const stopListening = async () => {
+    SpeechRecognition.stopListening();
+    await processQuestion(currentQuestion);
+  };
+
+  // Process the question and fetch AI response
+  const processQuestion = async (question: string) => {
+    setIsTyping(true);
+    const newMessages = [...messages, { role: "user", content: question }];
+    setMessages(newMessages);
 
     try {
-      setIsTyping(true);
-
-      // Make API call to your backend
-      const response = await fetch('http://localhost:3000/api/interview', { // Replace with the correct backend URL
-        method: 'POST',
+      console.log("Sending request to API with question:", question);
+      const response = await fetch("/api/interview", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: finalTranscript }),
+        body: JSON.stringify({ messages: newMessages }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get a valid response');
+        throw new Error(`API Error: ${response.status} - ${errorData.error || "Unknown error"}`);
       }
 
       const data = await response.json();
-      setResponse(data.response || 'No response received.');
-    } catch (error: any) {
-      console.error('Error getting response:', error.message);
-      setResponse(error.message || 'Sorry, there was an error processing your question.');
+      console.log("Received response from API:", data);
+      setResponse(data.result);
+      setMessages([...newMessages, { role: "assistant", content: data.result }]);
+    } catch (error) {
+      console.error("Error processing question:", error);
+      setResponse("Sorry, there was an error processing your question. Please try again.");
     } finally {
       setIsTyping(false);
-      finalTranscriptRef.current = '';
-      setCurrentQuestion('');
     }
   };
 
-  const startListening = () => {
-    setIsListening(true);
-  };
-
-  const stopListening = () => {
-    setIsListening(false);
-  };
-
+  // Toggle overlay visibility
   const toggleOverlay = () => {
     setIsOverlayVisible(!isOverlayVisible);
   };
+
+  // Render a message if the browser doesn't support speech recognition
+  if (!browserSupportsSpeechRecognition) {
+    return <div className="text-red-500">Your browser does not support speech recognition.</div>;
+  }
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-purple-950 via-gray-900 to-blue-950 text-gray-100 p-6">
@@ -148,7 +103,7 @@ export default function InterviewAssistant() {
             <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
               AI Interview Assistant
             </h1>
-            <p className="text-xl text-gray-400">Real-time interview support powered by AI</p>
+            <p className="text-xl text-gray-400">Real-time interview support powered by WizardLM2</p>
           </div>
 
           {/* Main interface */}
@@ -200,7 +155,10 @@ export default function InterviewAssistant() {
 
               <div ref={codeEditorRef} className="font-mono bg-gray-950/50 rounded-lg p-4 h-[400px] overflow-auto">
                 {isTyping ? (
-                    <span className="inline-block w-2 h-4 bg-purple-400 animate-pulse" />
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block w-2 h-4 bg-purple-400 animate-pulse" />
+                      <span className="text-purple-400">Processing your question...</span>
+                    </div>
                 ) : (
                     response || "Waiting for question..."
                 )}
