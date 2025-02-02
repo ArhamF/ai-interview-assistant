@@ -1,44 +1,35 @@
-import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';  // Correct import
+import { NextResponse } from "next/server";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
-const INTERVIEW_POSITION = "python developer";
-const SYSTEM_PROMPT = `You are interviewing for a ${INTERVIEW_POSITION} position.
-You will receive an audio transcription of the question. It may not be complete. You need to understand the question and write an answer to it.
-Before answering, take a deep breath and think one step at a time. Believe the answer in no more than 150 words.`;
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
     try {
-        const { question } = await req.json();
+        const { messages } = await request.json();
 
-        if (!question) {
-            return NextResponse.json(
-                { error: 'Question is required' },
-                { status: 400 }
-            );
-        }
+        // Extract the last user message
+        const lastMessage = messages[messages.length - 1].content;
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            temperature: 0.7,
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: question }
-            ],
+        // Send the prompt to Ollama
+        const ollamaResponse = await fetch("http://localhost:11434/api/generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: "llama2", // Replace with your model name
+                prompt: lastMessage,
+                stream: false, // Set to true if you want a streamed response
+            }),
         });
 
-        const answer = response.choices[0].message.content;
+        if (!ollamaResponse.ok) {
+            throw new Error(`Ollama API Error: ${ollamaResponse.statusText}`);
+        }
 
-        return NextResponse.json({ response: answer });
-
+        const data = await ollamaResponse.json();
+        return NextResponse.json({ result: data.response });
     } catch (error) {
-        console.error('Error processing interview question:', error);
+        console.error("Error in API route:", error);
         return NextResponse.json(
-            { error: 'Failed to process interview question' },
+            { error: "Failed to process the question" },
             { status: 500 }
         );
     }
