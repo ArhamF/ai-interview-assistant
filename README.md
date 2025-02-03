@@ -46,16 +46,18 @@ The **AI Interview Assistant** is a modern web application designed to help user
 ## Project Structure
 
 ```
-project/
-├── src/
+Ai Interview/
 │   ├── components/
 │   │   └── TextOverlay.tsx
 │   ├── app/
+│   │   |   ├── api/
+│   │   |   └── route.ts
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx
-│   └── python/
+│   └── src/
 │       ├── audio.py
+│       ├── constrants.py
 │       ├── llm.py
 │       └── simple_ui.py
 ```
