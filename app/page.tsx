@@ -13,7 +13,7 @@ export default function InterviewAssistant() {
   const [response, setResponse] = useState("")
   const [isOverlayVisible, setIsOverlayVisible] = useState(false)
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
-  const [wpm, setWpm] = useState(200) // Default WPM
+  const [wpm, setWpm] = useState(100) // Default WPM
   const codeEditorRef = useRef<HTMLDivElement>(null)
 
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
@@ -117,7 +117,7 @@ export default function InterviewAssistant() {
             <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
               AI Interview Assistant
             </h1>
-            <p className="text-xl text-gray-400">Real-time interview support powered by Deep-Seek R1</p>
+            <p className="text-xl text-gray-400">Real-time interview support powered by AI  API's of your choice</p>
           </div>
 
           {/* Main interface */}
@@ -159,7 +159,7 @@ export default function InterviewAssistant() {
                   <Settings className="w-5 h-5 text-blue-400" />
                   <h3 className="text-lg font-medium text-blue-300">Response Speed (WPM)</h3>
                 </div>
-                <input type="range" min="50" max="500" value={wpm} onChange={handleWpmChange} className="w-full" />
+                <input type="range" min="25" max="250" value={wpm} onChange={handleWpmChange} className="w-full" />
                 <p className="text-gray-300 mt-2">{wpm} words per minute</p>
               </div>
             </div>
@@ -209,3 +209,4 @@ export default function InterviewAssistant() {
       </div>
   )
 }
+
