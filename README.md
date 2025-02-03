@@ -37,7 +37,7 @@ The **AI Interview Assistant** is a modern web application designed to help user
   - Web Speech API for speech recognition
   - `soundcard` and `soundfile` for audio recording
 - **AI Integration:**
-  - OpenAI's GPT-3.5 for generating responses
+  - Now can use any GPT model, or any Ollama supported AI models locally
   - Whisper API for audio transcription
 - **Additional Tools:**
   - `PySimpleGUI` for alternative desktop interface
@@ -151,7 +151,7 @@ python src/python/simple_ui.py
 
 2. **AI Processing:**
    - Transcribes audio using OpenAI's Whisper API
-   - Generates contextual responses using GPT-3.5
+   - Generates contextual responses using a vareity of different AI models that can be selected
    - Supports both concise and detailed response modes
 
 3. **User Interface:**
