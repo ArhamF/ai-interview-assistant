@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'AI_Assistant',
-  description: 'Created with love',
+  description: 'Created without love',
 }
 
 export default function RootLayout({
