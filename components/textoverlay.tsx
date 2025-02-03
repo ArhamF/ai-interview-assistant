@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { X, ArrowLeft } from "lucide-react"
 
 interface TextOverlayProps {
@@ -10,66 +10,84 @@ interface TextOverlayProps {
 }
 
 export const TextOverlay: React.FC<TextOverlayProps> = ({ text, isVisible, onClose, wpm }) => {
-  const [currentText, setCurrentText] = useState("")
+  const [displayedText, setDisplayedText] = useState("")
   const [currentIndex, setCurrentIndex] = useState(0)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!isVisible) {
-      setCurrentText("")
+      setDisplayedText("")
       setCurrentIndex(0)
       return
     }
 
-    const words = text.split(" ")
-    const interval = setInterval(
-        () => {
-          if (currentIndex < words.length) {
-            setCurrentText((prev) => `${prev} ${words[currentIndex]}`)
-            setCurrentIndex((prev) => prev + 1)
-          } else {
-            clearInterval(interval)
-          }
-        },
-        (60 / wpm) * 1000,
-    ) // Convert WPM to milliseconds per word
+    const animateText = () => {
+      intervalRef.current = setInterval(
+          () => {
+            if (currentIndex < text.length) {
+              setDisplayedText((prev) => prev + text[currentIndex])
+              setCurrentIndex((prev) => prev + 1)
+            } else {
+              if (intervalRef.current) clearInterval(intervalRef.current)
+            }
+          },
+          (60 / (wpm * 5)) * 1000,
+      ) // Adjust for characters instead of words
+    }
 
-    return () => clearInterval(interval)
+    animateText()
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [isVisible, text, currentIndex, wpm])
 
   const handleBackspace = () => {
-    const words = currentText.trim().split(" ")
-    if (words.length > 1) {
-      words.pop()
-      setCurrentText(words.join(" ") + " ")
+    if (displayedText.length > 0) {
+      setDisplayedText((prev) => prev.slice(0, -1))
       setCurrentIndex((prev) => prev - 1)
-    } else {
-      setCurrentText("")
-      setCurrentIndex(0)
     }
   }
 
   if (!isVisible) return null
 
   return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="bg-gray-800 p-6 rounded-lg max-w-2xl w-full mx-4 relative">
-          <button
-              onClick={onClose}
-              className="absolute top-2 right-2 text-gray-400 hover:text-white"
-              aria-label="Close overlay"
-          >
-            <X size={24} />
-          </button>
-          <button
-              onClick={handleBackspace}
-              className="absolute top-2 left-2 text-gray-400 hover:text-white"
-              aria-label="Backspace"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <p className="text-white text-2xl font-bold mt-6 mb-4">AI Response:</p>
-          <div className="bg-gray-900 p-4 rounded-md">
-            <p className="text-white text-lg whitespace-pre-wrap">{currentText}</p>
+      <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="bg-black/95 w-full h-full absolute" />
+        <div className="relative w-full max-w-5xl mx-auto px-8 py-12">
+          {/* Control buttons */}
+          <div className="absolute top-4 right-4 flex gap-4">
+            <button
+                onClick={handleBackspace}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+                aria-label="Backspace"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+                aria-label="Close overlay"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Text content */}
+          <div className="space-y-8 overflow-y-auto max-h-[80vh]">
+            <div className="text-center space-y-2 opacity-50">
+              <h2 className="text-white/60 text-lg font-medium">AI Response</h2>
+              <div className="h-0.5 w-16 bg-gradient-to-r from-purple-500 to-pink-500 mx-auto rounded-full" />
+            </div>
+
+            <div className="flex flex-wrap justify-center items-baseline leading-relaxed">
+              <p className="text-white text-4xl font-mono whitespace-pre-wrap tracking-tight">
+                {displayedText}
+                {currentIndex < text.length && (
+                    <span className="inline-block w-2 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse ml-1 align-middle" />
+                )}
+              </p>
+            </div>
           </div>
         </div>
       </div>
