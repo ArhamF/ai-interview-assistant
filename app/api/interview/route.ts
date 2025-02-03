@@ -20,7 +20,7 @@ export async function POST(request: Request) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "deepseek-coder:1.5b",
+                model: "llama3.2:3b",
                 prompt: prompt,
                 stream: true,
             }),
@@ -66,3 +66,4 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to process the question" }, { status: 500 })
     }
 }
+
