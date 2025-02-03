@@ -1,98 +1,112 @@
 "use client"
 
-import "regenerator-runtime/runtime"; // Required for async/await support
-import { useState, useRef, useEffect } from "react";
-import { Mic, Code, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react";
-import { TextOverlay } from "../components/TextOverlay";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
+import "regenerator-runtime/runtime"
+import React, { useState, useRef, useEffect } from "react"
+import { Mic, Settings, Brain, Sparkles, Eye, EyeOff } from "lucide-react"
+import { TextOverlay } from "../components/TextOverlay"
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
 export default function InterviewAssistant() {
-  const [isListening, setIsListening] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [response, setResponse] = useState("");
-  const [isOverlayVisible, setIsOverlayVisible] = useState(false);
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
-  const codeEditorRef = useRef<HTMLDivElement>(null);
+  const [isListening, setIsListening] = useState(false)
+  const [currentQuestion, setCurrentQuestion] = useState("")
+  const [isThinking, setIsThinking] = useState(false)
+  const [response, setResponse] = useState("")
+  const [isOverlayVisible, setIsOverlayVisible] = useState(false)
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
+  const [wpm, setWpm] = useState(200) // Default WPM
+  const codeEditorRef = useRef<HTMLDivElement>(null)
 
-  // Destructure methods from useSpeechRecognition
-  const {
-    transcript,
-    listening,
-    resetTranscript,
-    browserSupportsSpeechRecognition,
-  } = useSpeechRecognition();
+  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
 
-  // Update currentQuestion when transcript changes
   useEffect(() => {
     if (browserSupportsSpeechRecognition) {
-      setCurrentQuestion(transcript);
+      setCurrentQuestion(transcript)
     }
-  }, [transcript, browserSupportsSpeechRecognition]);
+  }, [transcript, browserSupportsSpeechRecognition])
 
-  // Sync listening state with the component's isListening state
   useEffect(() => {
-    setIsListening(listening);
-  }, [listening]);
+    setIsListening(listening)
+  }, [listening])
 
-  // Debug log for currentQuestion
   useEffect(() => {
-    console.log("Current question updated:", currentQuestion);
-  }, [currentQuestion]);
+    console.log("Current question updated:", currentQuestion)
+  }, [currentQuestion])
 
-  // Start listening handler
   const startListening = () => {
-    resetTranscript();
-    SpeechRecognition.startListening({ continuous: true, language: "en-US" });
-  };
+    resetTranscript()
+    SpeechRecognition.startListening({ continuous: true, language: "en-US" })
+  }
 
-  // Stop listening handler
   const stopListening = async () => {
-    SpeechRecognition.stopListening();
-    await processQuestion(currentQuestion);
-  };
+    SpeechRecognition.stopListening()
+    await processQuestion(currentQuestion)
+  }
 
-  // Process the question and fetch AI response
   const processQuestion = async (question: string) => {
-    setIsTyping(true);
-    const newMessages = [...messages, { role: "user", content: question }];
-    setMessages(newMessages);
+    setIsThinking(true)
+    setResponse("") // Clear previous response
+    const newMessages = [...messages, { role: "user", content: question }]
+    setMessages(newMessages)
 
     try {
-      console.log("Sending request to API with question:", question);
+      console.log("Sending request to API with question:", question)
       const response = await fetch("/api/interview", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ messages: newMessages }),
-      });
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API Error: ${response.status} - ${errorData.error || "Unknown error"}`);
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const data = await response.json();
-      console.log("Received response from API:", data);
-      setResponse(data.result);
-      setMessages([...newMessages, { role: "assistant", content: data.result }]);
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error("Response body is not readable")
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = new TextDecoder().decode(value)
+        setResponse((prev) => prev + chunk)
+
+        // Auto-scroll to the bottom of the response
+        if (codeEditorRef.current) {
+          codeEditorRef.current.scrollTop = codeEditorRef.current.scrollHeight
+        }
+      }
+
+      setMessages([...newMessages, { role: "assistant", content: response }])
     } catch (error) {
-      console.error("Error processing question:", error);
-      setResponse("Sorry, there was an error processing your question. Please try again.");
+      console.error("Error processing question:", error)
+      setResponse("Sorry, there was an error processing your question. Please try again.")
     } finally {
-      setIsTyping(false);
+      setIsThinking(false)
     }
-  };
+  }
 
-  // Toggle overlay visibility
   const toggleOverlay = () => {
-    setIsOverlayVisible(!isOverlayVisible);
-  };
+    setIsOverlayVisible(!isOverlayVisible)
+  }
 
-  // Render a message if the browser doesn't support speech recognition
+  const formatResponse = (text: string) => {
+    return text.split("\n").map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          <br />
+        </React.Fragment>
+    ))
+  }
+
+  const handleWpmChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setWpm(Number(event.target.value))
+  }
+
   if (!browserSupportsSpeechRecognition) {
-    return <div className="text-red-500">Your browser does not support speech recognition.</div>;
+    return <div className="text-red-500">Your browser does not support speech recognition.</div>
   }
 
   return (
@@ -103,7 +117,7 @@ export default function InterviewAssistant() {
             <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
               AI Interview Assistant
             </h1>
-            <p className="text-xl text-gray-400">Real-time interview support powered by WizardLM2</p>
+            <p className="text-xl text-gray-400">Real-time interview support powered by Deep-Seek R1</p>
           </div>
 
           {/* Main interface */}
@@ -138,6 +152,16 @@ export default function InterviewAssistant() {
                 </div>
                 <p className="text-gray-300">{currentQuestion || "No question detected yet..."}</p>
               </div>
+
+              {/* WPM Slider */}
+              <div className="backdrop-blur-lg bg-white/5 rounded-2xl p-6 border border-white/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <Settings className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-lg font-medium text-blue-300">Response Speed (WPM)</h3>
+                </div>
+                <input type="range" min="50" max="500" value={wpm} onChange={handleWpmChange} className="w-full" />
+                <p className="text-gray-300 mt-2">{wpm} words per minute</p>
+              </div>
             </div>
 
             {/* Right panel - AI Response */}
@@ -148,19 +172,22 @@ export default function InterviewAssistant() {
                   <h2 className="text-xl font-semibold text-purple-300">AI Response</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Code className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-400">Live Coding</span>
+                  <Brain className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-400">Thinking Process</span>
                 </div>
               </div>
 
-              <div ref={codeEditorRef} className="font-mono bg-gray-950/50 rounded-lg p-4 h-[400px] overflow-auto">
-                {isTyping ? (
-                    <div className="flex items-center gap-2">
+              <div
+                  ref={codeEditorRef}
+                  className="font-mono bg-gray-950/50 rounded-lg p-4 h-[400px] overflow-auto whitespace-pre-wrap"
+              >
+                {isThinking ? (
+                    <>
+                      {formatResponse(response)}
                       <span className="inline-block w-2 h-4 bg-purple-400 animate-pulse" />
-                      <span className="text-purple-400">Processing your question...</span>
-                    </div>
+                    </>
                 ) : (
-                    response || "Waiting for question..."
+                    formatResponse(response) || "Waiting for question..."
                 )}
               </div>
             </div>
@@ -177,8 +204,8 @@ export default function InterviewAssistant() {
           </div>
 
           {/* Text Overlay */}
-          <TextOverlay text={response} isVisible={isOverlayVisible} />
+          <TextOverlay text={response} isVisible={isOverlayVisible} onClose={toggleOverlay} wpm={wpm} />
         </div>
       </div>
-  );
+  )
 }
